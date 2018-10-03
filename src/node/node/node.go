@@ -29,6 +29,8 @@ type Config struct {
 // Node is a Node service.
 type Node struct {
 	// TODO: implement
+	config Config
+	quit chan bool
 }
 
 // New creates a new Node with a given cfg.
@@ -36,8 +38,13 @@ type Node struct {
 // New создает новый Node с данным cfg.
 func New(cfg Config) *Node {
 	// TODO: implement
-	return nil
+	var node *Node = new(Node)
+	(*node).config = cfg
+	quit1 := make(chan bool)
+	(*node).quit = quit
+	return node
 }
+
 
 // Hearbeats runs heartbeats from node to a router
 // each time interval set by cfg.Hearbeat.
@@ -46,6 +53,18 @@ func New(cfg Config) *Node {
 // через каждый интервал времени, заданный в cfg.Heartbeat.
 func (node *Node) Heartbeats() {
 	// TODO: implement
+	go func() {
+		for {
+			select {
+			case <- (*node).quit:
+				return
+			default:
+				time.Sleep((*node).config.Heartbeat)
+				//send heartbeat
+			}
+		}
+	}
+
 }
 
 // Stop stops heartbeats
@@ -53,6 +72,7 @@ func (node *Node) Heartbeats() {
 // Stop останавливает отправку heartbeats.
 func (node *Node) Stop() {
 	// TODO: implement
+	(*node).quit <- true
 }
 
 // Put an item to the node if an item for the given key doesn't exist.
