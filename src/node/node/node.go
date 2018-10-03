@@ -2,7 +2,7 @@ package node
 
 import (
 	"time"
-
+	"sync"
 	router "router/client"
 	"storage"
 )
@@ -28,21 +28,20 @@ type Config struct {
 
 // Node is a Node service.
 type Node struct {
-	// TODO: implement
 	config Config
 	quit chan bool
+	dict map[storage.RecordID][]byte
+	mutex sync.RWMutex
 }
 
 // New creates a new Node with a given cfg.
 //
 // New создает новый Node с данным cfg.
 func New(cfg Config) *Node {
-	// TODO: implement
-	var node *Node = new(Node)
-	(*node).config = cfg
 	quit1 := make(chan bool)
-	(*node).quit = quit
-	return node
+	dct := make(map[storage.RecordID][]byte)
+
+	return &Node{config: cfg, quit: quit1, dict: dct}
 }
 
 
@@ -52,18 +51,17 @@ func New(cfg Config) *Node {
 // Hearbeats запускает отправку heartbeats от node к router
 // через каждый интервал времени, заданный в cfg.Heartbeat.
 func (node *Node) Heartbeats() {
-	// TODO: implement
 	go func() {
 		for {
 			select {
-			case <- (*node).quit:
+			case <- node.quit:
 				return
 			default:
-				time.Sleep((*node).config.Heartbeat)
-				//send heartbeat
+				time.Sleep(node.config.Heartbeat)
+				node.config.Client.Heartbeat(node.config.Router, node.config.Addr)
 			}
 		}
-	}
+	}()
 
 }
 
@@ -71,8 +69,7 @@ func (node *Node) Heartbeats() {
 //
 // Stop останавливает отправку heartbeats.
 func (node *Node) Stop() {
-	// TODO: implement
-	(*node).quit <- true
+	node.quit <- true
 }
 
 // Put an item to the node if an item for the given key doesn't exist.
@@ -81,7 +78,14 @@ func (node *Node) Stop() {
 // Put -- добавить запись в node, если запись для данного ключа
 // не существует. Иначе вернуть ошибку storage.ErrRecordExists.
 func (node *Node) Put(k storage.RecordID, d []byte) error {
-	// TODO: implement
+	node.mutex.Lock()
+	defer node.mutex.Unlock()
+
+	_, ok := node.dict[k]
+	if ok {
+		return storage.ErrRecordExists
+	}
+	node.dict[k] = d
 	return nil
 }
 
@@ -91,7 +95,14 @@ func (node *Node) Put(k storage.RecordID, d []byte) error {
 // Del -- удалить запись из node, если запись для данного ключа
 // существует. Иначе вернуть ошибку storage.ErrRecordNotFound.
 func (node *Node) Del(k storage.RecordID) error {
-	// TODO: implement
+	node.mutex.Lock()
+	defer node.mutex.Unlock()
+
+	_, ok := node.dict[k]
+	if !ok {
+		return storage.ErrRecordNotFound
+	}
+	delete(node.dict, k)
 	return nil
 }
 
@@ -101,6 +112,12 @@ func (node *Node) Del(k storage.RecordID) error {
 // Get -- получить запись из node, если запись для данного ключа
 // существует. Иначе вернуть ошибку storage.ErrRecordNotFound.
 func (node *Node) Get(k storage.RecordID) ([]byte, error) {
-	// TODO: implement
-	return nil, nil
+	node.mutex.Lock()
+	defer node.mutex.Unlock()
+
+	val, ok := node.dict[k]
+	if !ok {
+		return nil, storage.ErrRecordNotFound
+	}
+	return val, nil
 }
