@@ -29,7 +29,7 @@ type Config struct {
 // Node is a Node service.
 type Node struct {
 	config Config
-	quit chan bool
+	quit chan struct {}
 	dict map[storage.RecordID][]byte
 	mutex sync.RWMutex
 }
@@ -38,10 +38,10 @@ type Node struct {
 //
 // New создает новый Node с данным cfg.
 func New(cfg Config) *Node {
-	quit1 := make(chan bool)
+	quit := make(chan struct {})
 	dct := make(map[storage.RecordID][]byte)
 
-	return &Node{config: cfg, quit: quit1, dict: dct}
+	return &Node{config: cfg, quit: quit, dict: dct}
 }
 
 
@@ -69,7 +69,7 @@ func (node *Node) Heartbeats() {
 //
 // Stop останавливает отправку heartbeats.
 func (node *Node) Stop() {
-	node.quit <- true
+	node.quit <- struct {}{}
 }
 
 // Put an item to the node if an item for the given key doesn't exist.
